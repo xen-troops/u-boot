@@ -28,6 +28,10 @@ else
 arch-y += -D__LINUX_ARM_ARCH__=$(CONFIG_SYS_ARM_ARCH)
 endif
 
+ifeq ($(CONFIG_XEN),y)
+arch-y += -D__XEN__
+endif
+
 # Evaluate arch cc-option calls now
 arch-y := $(arch-y)
 

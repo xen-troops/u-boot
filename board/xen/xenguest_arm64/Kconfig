@@ -1,0 +1,19 @@
+if TARGET_XENGUEST_ARM64
+
+config SYS_BOARD
+	default "xenguest_arm64"
+
+config SYS_VENDOR
+	default "xen"
+
+config SYS_CONFIG_NAME
+	default "xenguest_arm64"
+
+config NEED_XEN_PARAMS
+	bool "Need to have a code to save registers as a boot params"
+	default y
+
+config LNX_KRNL_IMG_TEXT_OFFSET_BASE
+	default 0x80000000
+
+endif
