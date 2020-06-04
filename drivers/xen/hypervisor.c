@@ -38,6 +38,7 @@
 
 #include <xen/hvm.h>
 #include <xen/events.h>
+#include <xen/gnttab.h>
 #include <xen/xenbus.h>
 #include <xen/interface/memory.h>
 
@@ -275,5 +276,6 @@ void xen_init(void)
 	map_shared_info(NULL);
 	init_events();
 	init_xenbus();
+	init_gnttab();
 }
 
