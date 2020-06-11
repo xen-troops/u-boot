@@ -34,6 +34,7 @@
 #include <asm/xen/system.h>
 
 #include <xen/hvm.h>
+#include <xen/events.h>
 #include <xen/interface/memory.h>
 
 #define active_evtchns(cpu,sh,idx)	\
@@ -174,9 +175,7 @@ void do_hypervisor_callback(struct pt_regs *regs)
 			l2 &= ~(1UL << l2i);
 
 			port = (l1i * (sizeof(unsigned long) * 8)) + l2i;
-			/* TODO: handle new event: do_event(port, regs); */
-			/* Supress -Wunused-but-set-variable */
-			(void)(port);
+			do_event(port, regs);
 		}
 	}
 
@@ -247,5 +246,6 @@ void xen_init(void)
 	debug("%s\n", __func__);
 
 	map_shared_info(NULL);
+	init_events();
 }
 
