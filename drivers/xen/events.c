@@ -25,6 +25,8 @@
 #include <xen/events.h>
 #include <xen/hvm.h>
 
+extern uint32_t console_evtchn;
+
 #define NR_EVS 1024
 
 /* this represents a event handler. Chaining or sharing is not allowed */
@@ -47,6 +49,8 @@ void unbind_all_ports(void)
 	struct vcpu_info *vcpu_info = &s->vcpu_info[cpu];
 
 	for (i = 0; i < NR_EVS; i++) {
+		if (i == console_evtchn)
+			continue;
 		if (test_and_clear_bit(i, bound_ports)) {
 			printf("port %d still bound!\n", i);
 			unbind_evtchn(i);
