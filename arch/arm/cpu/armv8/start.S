@@ -120,6 +120,7 @@ pie_fixup_done:
 	mov	x0, #3 << 20
 	msr	cpacr_el1, x0			/* Enable FP/SIMD */
 0:
+	isb
 
 	/*
 	 * Enable SMPEN bit for coherency.
