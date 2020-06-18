@@ -27,22 +27,17 @@
 DECLARE_GLOBAL_DATA_PTR;
 
 /*
- * This should be used for debugging before MMU is setup and
- * serial driver enabled.
+ * N.B. We may be running with d-cache off at some initial boot stages,
+ * but according to Xen hypercall ABI (see include/public/arch-arm.h)
+ * all the shared buffers must reside in memory which is mapped as
+ * Normal Inner Write-Back Inner-Shareable. This means that before the
+ * MMU is set up we need to perform dcache maintenance manually.
+ *
+ * To see serial console prints before the MMU set up one needs to
+ * enable debug and verbose debug messages in Xen with CONFIG_VERBOSE_DEBUG
+ * configuration option: those prints include, in particular, u-boot
+ * banner, CPU and machine model and DRAM size.
  */
-void xen_early_printk(const char *fmt, ...)
-{
-	va_list args;
-	int len;
-	char buf[128];
-
-	va_start(args, fmt);
-	len = vsprintf(buf, fmt, args);
-	invalidate_dcache_range((unsigned long)buf,
-				(unsigned long)buf + len);
-	(void)HYPERVISOR_console_io(CONSOLEIO_write, len, buf);
-	va_end(args);
-}
 
 #ifndef CONFIG_DM_SERIAL
 static int xen_serial_init(void)
@@ -50,13 +45,6 @@ static int xen_serial_init(void)
 	return 0;
 }
 
-/*
- * N.B. We may be running with d-cache off at the moment, but
- * according to Xen hypercall ABI (see include/public/arch-arm.h)
- * all the buffers must reside in memory which is mapped as
- * Normal Inner Write-Back Inner-Shareable.
- * So, invalidate the data cache, so Xen sees consistent data.
- */
 static void xen_serial_putc(const char c)
 {
 	invalidate_dcache_range((unsigned long)&c,
@@ -116,6 +104,7 @@ struct xen_uart_priv {
 	u32 evtchn;
 	int vtermno;
 	struct hvc_struct *hvc;
+	bool need_dcache_maint;
 };
 
 int xen_serial_setbrg(struct udevice *dev, int baudrate)
@@ -146,6 +135,9 @@ static int xen_serial_probe(struct udevice *dev)
 	priv->intf = (struct xencons_interface *)(gfn << XEN_PAGE_SHIFT);
 	if (!priv->intf)
 		return -EINVAL;
+
+	priv->need_dcache_maint = !dcache_status();
+
 	return 0;
 }
 
@@ -204,8 +196,10 @@ static int __write_console(struct udevice *dev, const char *data, int len)
 	if (sent)
 		notify_remote_via_evtchn(priv->evtchn);
 
+#if 0
 	if (data[sent - 1] == '\n')
 		serial_puts("\r");
+#endif
 	return sent;
 }
 
@@ -229,9 +223,22 @@ static int write_console(struct udevice *dev, const char *data, int len)
 	return 0;
 }
 
+static int xen_serial_putc_hvc(const char ch)
+{
+	invalidate_dcache_range((unsigned long)&ch,
+				(unsigned long)&ch + 1);
+	(void)HYPERVISOR_console_io(CONSOLEIO_write, 1, (char *)&ch);
+	return 0;
+}
+
 static int xen_serial_putc(struct udevice *dev, const char ch)
 {
-	write_console(dev, &ch, 1);
+	struct xen_uart_priv *priv = dev_get_priv(dev);
+
+	if (priv->need_dcache_maint)
+		xen_serial_putc_hvc(ch);
+	else
+		write_console(dev, &ch, 1);
 	return 0;
 }
 
@@ -257,9 +264,7 @@ U_BOOT_DRIVER(serial_xen) = {
 	.priv_auto_alloc_size 	= sizeof(struct xen_uart_priv),
 	.probe 			= xen_serial_probe,
 	.ops			= &xen_serial_ops,
-#if !CONFIG_IS_ENABLED(OF_CONTROL)
 	.flags 			= DM_FLAG_PRE_RELOC,
-#endif
 };
 
 #endif /* CONFIG_DM_SERIAL */
