@@ -13,6 +13,7 @@
 #include <dm.h>
 #include <errno.h>
 #include <malloc.h>
+#include <xen.h>
 
 #include <asm/io.h>
 #include <asm/armv8/mmu.h>
@@ -193,5 +194,10 @@ int print_cpuinfo(void)
 {
 	printf("Xen virtual CPU\n");
 	return 0;
+}
+
+void board_cleanup_before_linux(void)
+{
+	xen_fini();
 }
 
