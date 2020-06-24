@@ -182,3 +182,8 @@ int print_cpuinfo(void)
 	return 0;
 }
 
+void board_cleanup_before_linux(void)
+{
+	xen_fini();
+}
+
