@@ -228,6 +228,18 @@ int do_avb_get_uuid(struct cmd_tbl *cmdtp, int flag,
 	return CMD_RET_FAILURE;
 }
 
+static void do_avb_update_cmdline(bool unlocked, AvbSlotVerifyData *out_data)
+{
+	char *cmdline;
+	char *extra_args = avb_set_state(avb_ops, unlocked ? AVB_ORANGE : AVB_GREEN);
+	if (extra_args)
+		cmdline = append_cmd_line(out_data->cmdline, extra_args);
+	else
+		cmdline = out_data->cmdline;
+
+	env_set(AVB_BOOTARGS, cmdline);
+}
+
 int do_avb_verify_part(struct cmd_tbl *cmdtp, int flag,
 		       int argc, char *const argv[])
 {
@@ -277,22 +289,17 @@ int do_avb_verify_part(struct cmd_tbl *cmdtp, int flag,
 		 * successful; we also supply in cmdline GREEN boot state
 		 */
 		printf("Verification passed successfully\n");
-
-		/* export additional bootargs to AVB_BOOTARGS env var */
-
-		extra_args = avb_set_state(avb_ops, AVB_GREEN);
-		if (extra_args)
-			cmdline = append_cmd_line(out_data->cmdline,
-						  extra_args);
-		else
-			cmdline = out_data->cmdline;
-
-		env_set(AVB_BOOTARGS, cmdline);
-
+		do_avb_update_cmdline(unlocked, out_data);
 		res = CMD_RET_SUCCESS;
 		break;
 	case AVB_SLOT_VERIFY_RESULT_ERROR_VERIFICATION:
-		printf("Verification failed\n");
+		if (unlocked && strstr(out_data->cmdline, "androidboot.veritymode=disabled")) {
+			printf("Device is unlocked and verification is disabled!\n");
+			do_avb_update_cmdline(unlocked, out_data);
+			res = CMD_RET_SUCCESS;
+		} else {
+			printf("Verification failed\n");
+		}
 		break;
 	case AVB_SLOT_VERIFY_RESULT_ERROR_IO:
 		printf("I/O error occurred during verification\n");
