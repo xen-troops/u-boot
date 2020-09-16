@@ -348,25 +348,34 @@ static struct mmc_part *get_partition(AvbOps *ops, const char *partition)
 		return NULL;
 
 	dev_num = get_boot_device(ops);
-	part->mmc = find_mmc_device(dev_num);
-	if (!part->mmc) {
-		printf("No MMC device at slot %x\n", dev_num);
-		goto err;
-	}
+	mmc_blk = get_blk(ops);
 
-	if (mmc_init(part->mmc)) {
-		printf("MMC initialization failed\n");
-		goto err;
-	}
-
-	ret = mmc_switch_part(part->mmc, part_num);
-	if (ret)
-		goto err;
-
-	mmc_blk = mmc_get_blk_desc(part->mmc);
 	if (!mmc_blk) {
-		printf("Error - failed to obtain block descriptor\n");
-		goto err;
+		part->mmc = find_mmc_device(dev_num);
+		if (!part->mmc) {
+			printf("No MMC device at slot %x\n", dev_num);
+			goto err;
+		}
+
+		if (mmc_init(part->mmc)) {
+			printf("MMC initialization failed\n");
+			goto err;
+		}
+
+		ret = mmc_switch_part(part->mmc, part_num);
+		if (ret)
+			goto err;
+
+		mmc_blk = mmc_get_blk_desc(part->mmc);
+		if (!mmc_blk) {
+			printf("Error - failed to obtain block descriptor\n");
+			goto err;
+		}
+		mmc_blk = mmc_get_blk_desc(part->mmc);
+		if (ret < 0) {
+			printf("Error - failed to obtain block descriptor\n");
+			goto err;
+		}
 	}
 
 	ret = part_get_info_by_name(mmc_blk, partition, &part->info);
@@ -977,7 +986,8 @@ free_name:
  * AVB2.0 AvbOps alloc/initialisation/free
  * ============================================================================
  */
-AvbOps *avb_ops_alloc(int boot_device)
+
+AvbOps *avb_ops_alloc(const char* boot_device, const char* interface)
 {
 	struct AvbOpsData *ops_data;
 
@@ -1000,7 +1010,12 @@ AvbOps *avb_ops_alloc(int boot_device)
 	ops_data->ops.read_persistent_value = read_persistent_value;
 #endif
 	ops_data->ops.get_size_of_partition = get_size_of_partition;
-	ops_data->mmc_dev = boot_device;
+	ops_data->mmc_dev = simple_strtoul(boot_device, NULL, 16);
+	ops_data->blk = NULL;
+	if (interface && (blk_get_device_by_str(interface, boot_device, &ops_data->blk) < 0)) {
+		printf("Error - failed to obtain block descriptor for devce=%s if=%s\n", boot_device, interface);
+		return NULL;
+	}
 
 	return &ops_data->ops;
 }
