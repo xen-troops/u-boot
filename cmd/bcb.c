@@ -23,6 +23,7 @@ enum bcb_cmd {
 static int bcb_dev = -1;
 static int bcb_part = -1;
 static struct bootloader_message bcb = { { 0 } };
+static struct blk_desc *bcb_blk_desc = NULL;
 
 static int bcb_cmd_get(char *cmd)
 {
@@ -48,6 +49,9 @@ static int bcb_is_misused(int argc, char *const argv[])
 
 	switch (cmd) {
 	case BCB_CMD_LOAD:
+		if (argc != 3 && argc != 4)
+			goto err;
+		break;
 	case BCB_CMD_FIELD_SET:
 		if (argc != 3)
 			goto err;
@@ -113,23 +117,22 @@ static int bcb_field_get(char *name, char **fieldp, int *sizep)
 static int do_bcb_load(struct cmd_tbl *cmdtp, int flag, int argc,
 		       char *const argv[])
 {
-	struct blk_desc *desc;
 	struct disk_partition info;
 	u64 cnt;
 	char *endp;
 	int part, ret;
 
-	ret = blk_get_device_by_str("mmc", argv[1], &desc);
+	ret = blk_get_device_by_str((argv[3]) ? argv[3] : "mmc", argv[1], &bcb_blk_desc);
 	if (ret < 0)
 		goto err_read_fail;
 
 	part = simple_strtoul(argv[2], &endp, 0);
 	if (*endp == '\0') {
-		ret = part_get_info(desc, part, &info);
+		ret = part_get_info(bcb_blk_desc, part, &info);
 		if (ret)
 			goto err_read_fail;
 	} else {
-		part = part_get_info_by_name(desc, argv[2], &info);
+		part = part_get_info_by_name(bcb_blk_desc, argv[2], &info);
 		if (part < 0) {
 			ret = part;
 			goto err_read_fail;
@@ -140,12 +143,12 @@ static int do_bcb_load(struct cmd_tbl *cmdtp, int flag, int argc,
 	if (cnt > info.size)
 		goto err_too_small;
 
-	if (blk_dread(desc, info.start, cnt, &bcb) != cnt) {
+	if (blk_dread(bcb_blk_desc, info.start, cnt, &bcb) != cnt) {
 		ret = -EIO;
 		goto err_read_fail;
 	}
 
-	bcb_dev = desc->devnum;
+	bcb_dev = bcb_blk_desc->devnum;
 	bcb_part = part;
 	debug("%s: Loaded from mmc %d:%d\n", __func__, bcb_dev, bcb_part);
 
@@ -253,24 +256,22 @@ static int do_bcb_dump(struct cmd_tbl *cmdtp, int flag, int argc,
 static int do_bcb_store(struct cmd_tbl *cmdtp, int flag, int argc,
 			char *const argv[])
 {
-	struct blk_desc *desc;
 	struct disk_partition info;
 	u64 cnt;
 	int ret;
 
-	desc = blk_get_devnum_by_type(IF_TYPE_MMC, bcb_dev);
-	if (!desc) {
+	if (!bcb_blk_desc) {
 		ret = -ENODEV;
 		goto err;
 	}
 
-	ret = part_get_info(desc, bcb_part, &info);
+	ret = part_get_info(bcb_blk_desc, bcb_part, &info);
 	if (ret)
 		goto err;
 
 	cnt = DIV_ROUND_UP(sizeof(struct bootloader_message), info.blksz);
 
-	if (blk_dwrite(desc, info.start, cnt, &bcb) != cnt) {
+	if (blk_dwrite(bcb_blk_desc, info.start, cnt, &bcb) != cnt) {
 		ret = -EIO;
 		goto err;
 	}
@@ -320,7 +321,7 @@ static int do_bcb(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 U_BOOT_CMD(
 	bcb, CONFIG_SYS_MAXARGS, 1, do_bcb,
 	"Load/set/clear/test/dump/store Android BCB fields",
-	"load  <dev> <part>       - load  BCB from mmc <dev>:<part>\n"
+	"load  <dev> <part> [<interface>]      - load  BCB from <dev>:<part>[<interface>]\n"
 	"bcb set   <field> <val>      - set   BCB <field> to <val>\n"
 	"bcb clear [<field>]          - clear BCB <field> or all fields\n"
 	"bcb test  <field> <op> <val> - test  BCB <field> against <val>\n"
@@ -328,8 +329,9 @@ U_BOOT_CMD(
 	"bcb store                    - store BCB back to mmc\n"
 	"\n"
 	"Legend:\n"
-	"<dev>   - MMC device index containing the BCB partition\n"
-	"<part>  - MMC partition index or name containing the BCB\n"
+	"<dev>   - device index containing the BCB partition\n"
+	"<part>  - partition index or name containing the BCB\n"
+	"<interface>  - interface name of the block device containing the BCB\n"
 	"<field> - one of {command,status,recovery,stage,reserved}\n"
 	"<op>    - the binary operator used in 'bcb test':\n"
 	"          '=' returns true if <val> matches the string stored in <field>\n"
