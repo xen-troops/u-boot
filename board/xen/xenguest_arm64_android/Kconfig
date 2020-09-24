@@ -1,0 +1,12 @@
+if TARGET_XENGUEST_ARM64_ANDROID
+
+config SYS_BOARD
+	default "xenguest_arm64_android"
+
+config SYS_VENDOR
+	default "xen"
+
+config SYS_CONFIG_NAME
+	default "xenguest_arm64_android"
+
+endif
