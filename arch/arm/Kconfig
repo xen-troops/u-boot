@@ -1730,6 +1730,10 @@ config TARGET_XENGUEST_ARM64
 	bool "Xen guest ARM64"
 	select XENGUEST_ARM64_COMMON
 
+config TARGET_XENGUEST_ARM64_ANDROID
+	bool "Xen guest ARM64 for Android"
+	select XENGUEST_ARM64_COMMON
+
 endchoice
 
 config ARCH_SUPPORT_TFABOOT
@@ -1934,6 +1938,7 @@ source "board/xilinx/zynq/Kconfig"
 source "board/xilinx/zynqmp/Kconfig"
 source "board/phytium/durian/Kconfig"
 source "board/xen/xenguest_arm64/Kconfig"
+source "board/xen/xenguest_arm64_android/Kconfig"
 
 source "arch/arm/Kconfig.debug"
 
