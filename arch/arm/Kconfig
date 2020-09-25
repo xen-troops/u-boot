@@ -340,6 +340,15 @@ config SYS_CACHELINE_SIZE
 	default 64 if SYS_CACHE_SHIFT_6
 	default 32 if SYS_CACHE_SHIFT_5
 
+config XENGUEST_ARM64_COMMON
+	bool
+	select ARM64
+	select XEN
+	select OF_CONTROL
+	select LINUX_KERNEL_IMAGE_HEADER
+	select XEN_SERIAL
+	select SSCANF
+
 choice
 	prompt "Select the ARM data write cache policy"
 	default SYS_ARM_CACHE_WRITETHROUGH if TARGET_BCMCYGNUS || \
@@ -1719,12 +1728,8 @@ config TARGET_PRESIDIO_ASIC
 
 config TARGET_XENGUEST_ARM64
 	bool "Xen guest ARM64"
-	select ARM64
-	select XEN
-	select OF_CONTROL
-	select LINUX_KERNEL_IMAGE_HEADER
-	select XEN_SERIAL
-	select SSCANF
+	select XENGUEST_ARM64_COMMON
+
 endchoice
 
 config ARCH_SUPPORT_TFABOOT
