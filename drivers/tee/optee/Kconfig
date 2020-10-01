@@ -22,6 +22,19 @@ config OPTEE_TA_AVB
 	  The TA can support the "avb" subcommands "read_rb", "write"rb"
 	  and "is_unlocked".
 
+config OPTEE_RPMB_EMUL
+       bool "Support RPMB emulation for OP-TEE"
+       default n
+       depends on !SUPPORT_EMMC_RPMB
+       help
+         Enables emulation of RPMB partiotion, using GPT partitoion
+	 named "RPMBEMUL" on pvblock device
+
+config OPTEE_ENABLE_RPMB
+       bool "Enable RPMB support for OP-TEE supplicant"
+       depends on OPTEE_RPMB_EMUL || SUPPORT_EMMC_RPMB
+       default y
+
 endmenu
 
 endif
