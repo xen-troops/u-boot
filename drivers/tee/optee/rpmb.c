@@ -10,6 +10,7 @@
 #include <mmc.h>
 #include <dm/device_compat.h>
 
+#include "rpmb.h"
 #include "optee_msg.h"
 #include "optee_private.h"
 
@@ -18,28 +19,7 @@
  * OP-TEE.
  */
 
-/* Request */
-struct rpmb_req {
-	u16 cmd;
-#define RPMB_CMD_DATA_REQ      0x00
-#define RPMB_CMD_GET_DEV_INFO  0x01
-	u16 dev_id;
-	u16 block_count;
-	/* Optional data frames (rpmb_data_frame) follow */
-};
-
-#define RPMB_REQ_DATA(req) ((void *)((struct rpmb_req *)(req) + 1))
-
-/* Response to device info request */
-struct rpmb_dev_info {
-	u8 cid[16];
-	u8 rpmb_size_mult;	/* EXT CSD-slice 168: RPMB Size */
-	u8 rel_wr_sec_c;	/* EXT CSD-slice 222: Reliable Write Sector */
-				/*                    Count */
-	u8 ret_code;
-#define RPMB_CMD_GET_DEV_INFO_RET_OK     0x00
-#define RPMB_CMD_GET_DEV_INFO_RET_ERROR  0x01
-};
+#ifndef CONFIG_OPTEE_RPMB_EMUL
 
 static void release_mmc(struct optee_private *priv)
 {
@@ -151,6 +131,16 @@ static u32 rpmb_process_request(struct optee_private *priv, void *req,
 	}
 }
 
+#else
+
+static u32 rpmb_process_request(struct optee_private *priv, void *req,
+				ulong req_size, void *rsp, ulong rsp_size)
+{
+ 	return rpmb_emu_process_request(req, req_size, rsp, rsp_size);
+}
+
+#endif
+
 void optee_suppl_cmd_rpmb(struct udevice *dev, struct optee_msg_arg *arg)
 {
 	struct tee_shm *req_shm;
@@ -181,5 +171,7 @@ void optee_suppl_cmd_rpmb(struct udevice *dev, struct optee_msg_arg *arg)
 
 void optee_suppl_rpmb_release(struct udevice *dev)
 {
+#ifndef CONFIG_OPTEE_RPMB_EMUL
 	release_mmc(dev_get_priv(dev));
+#endif
 }

@@ -28,7 +28,7 @@ struct optee_msg_arg;
 void optee_suppl_cmd(struct udevice *dev, struct tee_shm *shm_arg,
 		     void **page_list);
 
-#ifdef CONFIG_SUPPORT_EMMC_RPMB
+#ifdef CONFIG_OPTEE_ENABLE_RPMB
 /**
  * optee_suppl_cmd_rpmb() - route RPMB frames to mmc
  * @dev:	device with the selected RPMB partition
