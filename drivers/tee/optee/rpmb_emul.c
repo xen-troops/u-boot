@@ -71,7 +71,7 @@ struct rpmb_emu {
 
 static lbaint_t rpmb_part_offset;
 static struct blk_desc *rpmb_desc;
-static struct rpmb_emu rpmb_emu;
+static char rpmb_emu[PAD_SIZE(sizeof(struct rpmb_emu), 512)];
 
 static bool set_rpmb_partition(void)
 {
@@ -134,6 +134,7 @@ static bool rpmb_read_state(void)
 {
 	static bool read = false;
 	unsigned long blk_count;
+	struct rpmb_emu *mem = (struct rpmb_emu*)rpmb_emu;
 
 	if (read)
 		return true;
@@ -145,18 +146,19 @@ static bool rpmb_read_state(void)
 			      rpmb_desc);
 
 	if (blk_dread(rpmb_desc, rpmb_part_offset, blk_count,
-		      &rpmb_emu) != blk_count)
+		      mem) != blk_count)
 	{
 		log_err("RPMB-EMU: Error reading state\n");
 		return false;
 	}
-	if (rpmb_emu.magic != EMU_RPMB_MAGIC)
+
+	if (mem->magic != EMU_RPMB_MAGIC)
 	{
 		log_info("RPMB-EMU: Invalid magic. Reseting state\n");
-		memset(&rpmb_emu, 0,  sizeof(rpmb_emu));
+		memset(mem, 0,  sizeof(struct rpmb_emu));
 
-		rpmb_emu.magic = EMU_RPMB_MAGIC;
-		rpmb_emu.size = EMU_RPMB_SIZE_BYTES;
+		mem->magic = EMU_RPMB_MAGIC;
+		mem->size = EMU_RPMB_SIZE_BYTES;
 	}
 
 	read = true;
@@ -348,7 +350,7 @@ static int emu_process_data_req(struct rpmb_data_frame *req_frm,
 				int resp_nfrm)
 {
 	uint16_t msg_type = ntohs(req_frm->msg_type);
-	struct rpmb_emu *mem = &rpmb_emu;
+	struct rpmb_emu *mem = (struct rpmb_emu*)rpmb_emu;
 
 	rpmb_read_state();
 
