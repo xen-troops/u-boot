@@ -25,7 +25,7 @@
 	"blk_device_id=0\0" \
 	"blk_deivce_if=pvblock\0" \
 	"bootcmd=part number ${blk_deivce_if} ${blk_device_id} misc misc_partition_id; bcb load ${blk_device_id} ${misc_partition_id} ${blk_deivce_if}; if bcb test command = boot-recovery; then echo Booting recovery...; run boot_pvblock_recovery; else echo Booting Android...; run boot_pvblock; fi;\0" \
-	"avb_verify=avb init ${blk_device_id} ${blk_deivce_if}; avb verify _${slot};\0" \
+	"avb_verify=avb init ${blk_device_id} ${blk_deivce_if}; avb read_rb ${blk_device_id}; avb verify _${slot};\0" \
 	"avb_check=if run avb_verify; then                       \
            echo AVB verification OK. Continue boot; \
            set bootargs $bootargs $avb_bootargs;    \
