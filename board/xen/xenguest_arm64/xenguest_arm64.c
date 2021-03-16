@@ -96,7 +96,7 @@ static int setup_mem_map(void)
 
 	xen_mem_map[i].virt = PFN_PHYS(gfn);
 	xen_mem_map[i].phys = PFN_PHYS(gfn);
-	xen_mem_map[i].size = PAGE_SIZE;
+	xen_mem_map[i].size = PAGE_SIZE*4;
 	xen_mem_map[i].attrs = (PTE_BLOCK_MEMTYPE(MT_NORMAL) |
 				PTE_BLOCK_INNER_SHARE);
 	i++;
