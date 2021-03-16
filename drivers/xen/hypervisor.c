@@ -51,8 +51,9 @@ int in_callback;
 /*
  * Shared page for communicating with the hypervisor.
  * Events flags go here, for example.
+ * The 0x39004000 is address for next page after Xen GUEST_MAGIC region
  */
-struct shared_info *HYPERVISOR_shared_info;
+struct shared_info *HYPERVISOR_shared_info = (struct shared_info*)0x39004000;
 
 #ifndef CONFIG_PARAVIRT
 static const char *param_name(int op)
@@ -147,11 +148,6 @@ int hvm_set_parameter(int idx, uint64_t value)
 struct shared_info *map_shared_info(void *p)
 {
 	struct xen_add_to_physmap xatp;
-
-	HYPERVISOR_shared_info = (struct shared_info *)memalign(PAGE_SIZE,
-								PAGE_SIZE);
-	if (HYPERVISOR_shared_info == NULL)
-		BUG();
 
 	xatp.domid = DOMID_SELF;
 	xatp.idx = 0;
@@ -286,4 +282,5 @@ void xen_fini(void)
 	fini_gnttab();
 	fini_xenbus();
 	fini_events();
+	unmap_shared_info();
 }
