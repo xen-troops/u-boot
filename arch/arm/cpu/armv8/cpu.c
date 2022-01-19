@@ -48,6 +48,14 @@ int cleanup_before_linux(void)
 
 	disable_interrupts();
 
+#ifdef CONFIG_CMO_BY_VA_ONLY
+	/*
+	 * None of the standard u-boot stuff makes any sense on an
+	 * ARMv8 CPU. Thankfully, we can ignore all that crap and do
+	 * the right thing (MMU will be turned off and dcache C+I'd).
+	 */
+	dcache_disable();
+#else
 	/*
 	 * Turn off I-cache and invalidate it
 	 */
@@ -60,6 +68,7 @@ int cleanup_before_linux(void)
 	 */
 	dcache_disable();
 	invalidate_dcache_all();
+#endif
 
 	return 0;
 }
