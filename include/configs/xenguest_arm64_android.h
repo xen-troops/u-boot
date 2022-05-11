@@ -40,4 +40,6 @@
 	"loadimage=run read_bootimage_params; pvblock read ${boot_image_addr} ${boot_image_part_blk} ${boot_image_length_blk};\0" \
 	"read_bootimage_params=part start pvblock ${blk_device_id} boot_${slot} boot_image_part_blk ; part size pvblock ${blk_device_id} boot_${slot} boot_image_length_blk;\0"
 
+#define WORKAROUND_AVB_BOOT_HASH_CHECK
+
 #endif /* __XENGUEST_ARM64_H */

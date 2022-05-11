@@ -270,6 +270,10 @@ int do_avb_verify_part(struct cmd_tbl *cmdtp, int flag,
 		return CMD_RET_FAILURE;
 	}
 
+#ifdef WORKAROUND_AVB_BOOT_HASH_CHECK
+	printf("## Boot image verification is disabled by workaround....\n");
+#endif
+
 	slot_result =
 		avb_slot_verify(avb_ops,
 				requested_partitions,

@@ -900,6 +900,12 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
    * we're done... except that we need to load the entirety of the
    * requested partitions.
    */
+
+#ifdef WORKAROUND_AVB_BOOT_HASH_CHECK
+  ret = AVB_SLOT_VERIFY_RESULT_OK;
+  goto out;
+#endif
+
   if (vbmeta_header.flags & AVB_VBMETA_IMAGE_FLAGS_VERIFICATION_DISABLED) {
     AvbSlotVerifyResult sub_ret;
     avb_debugv(
