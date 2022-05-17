@@ -426,7 +426,16 @@ __weak void mmu_setup(void)
  */
 void invalidate_dcache_all(void)
 {
-	__asm_invalidate_dcache_all();
+	int i;
+
+	/*__asm_invalidate_dcache_all();*/
+	for (i = 0; mem_map[i].size || mem_map[i].attrs; i++) {
+		struct mm_region *map = &mem_map[i];
+		if (map->attrs & PTE_BLOCK_MEMTYPE(MT_NORMAL)) {
+			invalidate_dcache_range(map->virt, map->virt + map->size);
+		}
+	}
+
 	__asm_invalidate_l3_dcache();
 }
 
@@ -437,9 +446,16 @@ void invalidate_dcache_all(void)
  */
 inline void flush_dcache_all(void)
 {
-	int ret;
+	int ret, i;
 
-	__asm_flush_dcache_all();
+	/* __asm_flush_dcache_all(); */
+	for (i = 0; mem_map[i].size || mem_map[i].attrs; i++) {
+		struct mm_region *map = &mem_map[i];
+		if (map->attrs & PTE_BLOCK_MEMTYPE(MT_NORMAL)) {
+			flush_dcache_range(map->virt, map->virt + map->size);
+		}
+	}
+
 	ret = __asm_flush_l3_dcache();
 	if (ret)
 		debug("flushing dcache returns 0x%x\n", ret);
