@@ -421,6 +421,7 @@ __weak void mmu_setup(void)
 	set_sctlr(get_sctlr() | CR_M);
 }
 
+#define XEN_GUEST_MEM_BASE 0x40000000
 /*
  * Performs a invalidation of the entire data cache at all levels
  */
@@ -431,7 +432,8 @@ void invalidate_dcache_all(void)
 	/*__asm_invalidate_dcache_all();*/
 	for (i = 0; mem_map[i].size || mem_map[i].attrs; i++) {
 		struct mm_region *map = &mem_map[i];
-		if (map->attrs & PTE_BLOCK_MEMTYPE(MT_NORMAL)) {
+		/* GNTTAB_BASE is mapped as MT_NORMAL, but there no real memory at boot */
+		if ((map->attrs & PTE_BLOCK_MEMTYPE(MT_NORMAL)) && (map->virt >= XEN_GUEST_MEM_BASE)) {
 			invalidate_dcache_range(map->virt, map->virt + map->size);
 		}
 	}
@@ -451,7 +453,7 @@ inline void flush_dcache_all(void)
 	/* __asm_flush_dcache_all(); */
 	for (i = 0; mem_map[i].size || mem_map[i].attrs; i++) {
 		struct mm_region *map = &mem_map[i];
-		if (map->attrs & PTE_BLOCK_MEMTYPE(MT_NORMAL)) {
+		if ((map->attrs & PTE_BLOCK_MEMTYPE(MT_NORMAL)) && (map->virt >= XEN_GUEST_MEM_BASE)) {
 			flush_dcache_range(map->virt, map->virt + map->size);
 		}
 	}
