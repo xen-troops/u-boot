@@ -249,6 +249,26 @@ copy_to_dist_dir(
     flat = True,
 )
 
+kernel_build(
+    name = "xen_pvblock_aarch64",
+    outs = [
+        "System.map",
+        "u-boot",
+        "u-boot.bin",
+    ],
+    build_config = "build.config.xen_pvblock.aarch64",
+    deps = [
+        "//prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9:binaries",
+    ],
+)
+
+copy_to_dist_dir(
+    name = "xen_pvblock_aarch64_dist",
+    data = [":xen_pvblock_aarch64"],
+    dist_dir = "out/u-boot/dist",
+    flat = True,
+)
+
 copy_to_dist_dir(
     name = "gbl_efi_dist",
     data = [ "@gbl//efi:all_platforms" ],

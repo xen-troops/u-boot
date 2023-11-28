@@ -1,0 +1,17 @@
+CONFIG_OF_LIBFDT=y
+CONFIG_CMD_FDT=y
+CONFIG_CMD_ECHO=y
+CONFIG_DEFAULT_ENV_FILE="default_xen_pvblock_env.txt"
+
+
+#
+# Configs copied from 'qemu-minimal.fragment' to make buildable configuration
+#
+# CONFIG_TOOLS_LIBCRYPTO is not set
+# CONFIG_FIT is not set
+# CONFIG_FIT_SIGNATURE is not set
+# CONFIG_FIT_VERBOSE is not set
+# CONFIG_FIT_BEST_MATCH is not set
+
+# CONFIG_ANDROID_PERSISTENT_RAW_DISK is not set
+# CONFIG_ANDROID_PERSISTENT_RAW_DISK_DEVICE is not set
