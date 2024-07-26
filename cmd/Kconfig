@@ -1346,6 +1346,13 @@ config CMD_CLONE
 	  initial flashing by external block device without network
 	  or usb support.
 
+config CMD_OPTEE_LOAD
+	bool "Load OP-TEE binary from U-boot"
+	depends on OPTEE_LOAD_IMAGE
+	help
+	  Allow U-Boot to load OP-TEE image via OPTEE_SMC_CALL_LOAD_IMAGE
+	  call.
+
 config CMD_OPTEE_RPMB
 	bool "Enable read/write support on RPMB via OPTEE"
 	depends on SUPPORT_EMMC_RPMB && OPTEE

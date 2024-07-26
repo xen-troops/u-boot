@@ -29,6 +29,8 @@ struct optee_header {
 	uint32_t paged_size;
 };
 
+int optee_load_image(unsigned long paddr, size_t size);
+
 static inline uint32_t
 optee_image_get_entry_point(const struct legacy_img_hdr *hdr)
 {

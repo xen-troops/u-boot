@@ -261,6 +261,20 @@ struct optee_msg_arg {
 #define OPTEE_MSG_FUNCID_GET_OS_REVISION	0x0001
 
 /*
+ * Load Trusted OS from memory
+ *
+ * WARNING: Use this cautiously as it could lead to insecure loading of the
+ * Trusted OS.
+ * This SMC instructs EL3 to load a binary and excute it as the Trusted OS.
+ * The first two params are the high and low 32 bits of the size of the payload
+ * and the third and fourth params are the high and low 32 bits of the physical
+ * address of the payload. The payload is in the OP-TEE image format.
+ *
+ * Returns 0 on success and an error code otherwise.
+ */
+#define OPTEE_MSG_FUNCID_LOAD_IMAGE   0x0002
+
+/*
  * Do a secure call with struct optee_msg_arg as argument
  * The OPTEE_MSG_CMD_* below defines what goes in struct optee_msg_arg::cmd
  *

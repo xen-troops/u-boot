@@ -33,4 +33,12 @@ source "drivers/tee/broadcom/Kconfig"
 
 endmenu
 
+config OPTEE_LOAD_IMAGE
+	bool "Support OPTEE LOAD IMAGE call"
+	help
+	  Select this option to allow OPTEE_SMC_CALL_LOAD_IMAGE call, which
+	  will load OP-TEE image to ARM TF. Please note that this can affect
+	  security. Use this option only if you able to verify OP-TEE image
+	  integrity
+
 endif
