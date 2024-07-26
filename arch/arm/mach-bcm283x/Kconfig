@@ -46,7 +46,11 @@ config BCM2711_64B
 
 config BCM2712
 	bool "Broadcom BCM2712 SoC support"
+	select LINUX_KERNEL_IMAGE_HEADER
 	depends on ARCH_BCM283X
+
+config LNX_KRNL_IMG_TEXT_OFFSET_BASE
+	default TEXT_BASE
 
 menu "Broadcom BCM283X family"
 	depends on ARCH_BCM283X
