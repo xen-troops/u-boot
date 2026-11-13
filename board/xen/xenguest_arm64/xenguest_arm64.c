@@ -11,7 +11,11 @@
 #include <log.h>
 #include <cpu_func.h>
 #include <dm.h>
+#include <env_internal.h>
 #include <errno.h>
+#include <image.h>
+#include <init.h>
+#include <lmb.h>
 #include <malloc.h>
 #include <xen.h>
 #include <asm/global_data.h>
@@ -20,11 +24,14 @@
 
 #include <asm/io.h>
 #include <asm/armv8/mmu.h>
+#include <asm/sections.h>
+#include <asm/system.h>
 #include <asm/xen.h>
 #include <asm/xen/hypercall.h>
 #include <asm/xen/system.h>
 
 #include <linux/compiler.h>
+#include <linux/sizes.h>
 
 #include <xen/gnttab.h>
 #include <xen/hvm.h>
@@ -260,6 +267,61 @@ void enable_caches(void)
 	setup_mem_map();
 	icache_enable();
 	dcache_enable();
+}
+
+/*
+ * Bytes board_f.c reserves below ram_top: page tables (64KB aligned),
+ * the image, malloc, board info, gd and the FDT copy, plus the stack that
+ * grows down from there. Other reservations take nothing on this board.
+ */
+static phys_size_t relocation_window(phys_size_t total_size)
+{
+	phys_size_t need;
+
+	need = ALIGN(total_size, SZ_4K);
+	need += ALIGN(PGTABLE_SIZE, SZ_64K);
+	need += ALIGN(TOTAL_MALLOC_LEN, 16);
+	need += ALIGN(sizeof(struct bd_info), 16);
+	need += ALIGN(sizeof(gd_t), 16);
+	need += ALIGN(fdt_totalsize(gd->fdt_blob), 32);
+	need += 16; /* 16-byte SP alignment */
+	need += CONFIG_STACK_SIZE;
+
+	return ALIGN(need, SZ_64K);
+}
+
+/*
+ * U-Boot relocates to the top of the first bank by default, ignoring
+ * /reserved-memory. Ranges listed there may be in use, so pick the
+ * highest free block below gd->ram_top instead.
+ */
+phys_size_t board_get_usable_ram_top(phys_size_t total_size)
+{
+	void *blob = (void *)gd->fdt_blob;
+	phys_size_t size;
+	phys_addr_t base;
+	struct lmb lmb;
+
+	/*
+	 * After relocation U-Boot already lives below gd->ram_top,
+	 * so that choice is final.
+	 */
+	if (gd->flags & GD_FLG_RELOC)
+		return gd->ram_top;
+
+	lmb_init(&lmb);
+	lmb_add(&lmb, gd->ram_base, get_effective_memsize());
+	boot_fdt_add_mem_rsv_regions(&lmb, blob);
+	/* Also keep away from the image still executing and the DTB */
+	lmb_reserve(&lmb, (uintptr_t)_start, total_size);
+	lmb_reserve(&lmb, (uintptr_t)blob, fdt_totalsize(blob));
+
+	size = relocation_window(total_size);
+	base = lmb_alloc(&lmb, size, SZ_64K);
+	if (!base)
+		panic("Unable to relocate U-Boot outside reserved memory\n");
+
+	return base + size;
 }
 
 /* Read memory settings from the Xen provided device tree. */
