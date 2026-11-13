@@ -12,6 +12,7 @@
 #include <cpu_func.h>
 #include <dm.h>
 #include <errno.h>
+#include <init.h>
 #include <malloc.h>
 #include <xen.h>
 #include <asm/global_data.h>
@@ -25,6 +26,10 @@
 #include <asm/xen/system.h>
 
 #include <linux/compiler.h>
+#include <linux/sizes.h>
+#include <env_internal.h>
+#include <asm/sections.h>
+#include <asm/system.h>
 
 #include <xen/gnttab.h>
 #include <xen/hvm.h>
@@ -260,6 +265,150 @@ void enable_caches(void)
 	setup_mem_map();
 	icache_enable();
 	dcache_enable();
+}
+
+#define MAX_RSV_SPANS	16
+
+static void add_span(struct mm_region *regs, int *n, u64 start, u64 size)
+{
+	if (*n >= MAX_RSV_SPANS || !size)
+		return;
+
+	regs[*n].phys = start;
+	regs[*n].size = size;
+	(*n)++;
+}
+
+/*
+ * Collect ranges U-Boot must not relocate over: the running image, the DTB
+ * provided by Xen and /reserved-memory nodes.
+ */
+static int parse_res_mem_spans(const void *blob, struct mm_region *regs,
+			       phys_size_t mon_len)
+{
+	int parent, node, n = 0;
+
+	if (mon_len)
+		add_span(regs, &n, (uintptr_t)_start, mon_len);
+
+	add_span(regs, &n, (uintptr_t)blob, fdt_totalsize(blob));
+
+	parent = fdt_path_offset(blob, "/reserved-memory");
+	if (parent < 0)
+		return n;
+
+	for (node = fdt_first_subnode(blob, parent);
+	     node >= 0;
+	     node = fdt_next_subnode(blob, node)) {
+		int reg = 0;
+
+		if (!fdtdec_get_is_enabled(blob, node))
+			continue;
+
+		for (;;) {
+			struct fdt_resource res;
+
+			if (fdt_get_resource(blob, node, "reg", reg++, &res))
+				break;
+			add_span(regs, &n, res.start, fdt_resource_size(&res));
+		}
+	}
+
+	return n;
+}
+
+/*
+ * Bytes board_f.c reserves below ram_top: page tables (64KB aligned),
+ * the image, malloc, board info, gd and the FDT copy, plus the stack that
+ * grows down from there. SZ_1M covers the round-downs.
+ */
+static phys_size_t relocation_window(phys_size_t mon_len)
+{
+	phys_size_t need = ALIGN(mon_len, SZ_4K);
+	need += ALIGN(PGTABLE_SIZE, SZ_64K);
+	need += TOTAL_MALLOC_LEN;
+	need += ALIGN(sizeof(struct bd_info), 16);
+	need += ALIGN(sizeof(gd_t), 16);
+	if (gd->fdt_blob)
+		need += ALIGN(fdt_totalsize(gd->fdt_blob), 32);
+	need += CONFIG_STACK_SIZE;
+	need += SZ_1M;
+
+	return need;
+}
+
+/* Highest exclusive end of a bank subrange that can hold needed bytes. */
+static phys_addr_t region_fit_top(const struct mm_region *bank,
+				  phys_size_t need,
+				  const struct mm_region *spans, int nspans)
+{
+	phys_addr_t top = bank->phys + bank->size;
+
+	if (!bank->size)
+		return 0;
+
+	for (;;) {
+		phys_addr_t base;
+		int i, hit = -1;
+
+		if (top <= bank->phys || (top - bank->phys) < need)
+			return 0;
+
+		base = top - need;
+		for (i = 0; i < nspans; i++) {
+			u64 span_end = spans[i].phys + spans[i].size;
+
+			if (span_end <= base || spans[i].phys >= top)
+				continue;
+
+			if (hit < 0 || spans[i].phys < spans[hit].phys)
+				hit = i;
+		}
+
+		if (hit < 0)
+			return top;
+
+		if (spans[hit].phys <= bank->phys)
+			return 0;
+
+		top = spans[hit].phys;
+	}
+}
+
+phys_size_t board_get_usable_ram_top(phys_size_t total_size)
+{
+	struct mm_region spans[MAX_RSV_SPANS];
+	struct mm_region bank;
+	const void *blob = gd->fdt_blob;
+	phys_size_t need;
+	phys_addr_t top;
+	int nspans;
+
+	/*
+	 * After relocation U-Boot already lives below gd->ram_top,
+	 * so that choice is final.
+	 */
+	if (gd->flags & GD_FLG_RELOC)
+		return gd->ram_top;
+
+	if (!blob)
+		return gd->ram_top;
+
+	need = relocation_window(total_size);
+	nspans = parse_res_mem_spans(blob, spans, total_size);
+
+	/* Search from the first RAM bank. */
+	bank.phys = gd->ram_base;
+	bank.size = gd->ram_top - gd->ram_base;
+	top = region_fit_top(&bank, need, spans, nspans);
+	if (!top)
+		return gd->ram_top;
+
+	debug("RAM-top: need 0x%llx, selected 0x%llx (was 0x%llx)\n",
+			(unsigned long long)need, (unsigned long long)top,
+			(unsigned long long)gd->ram_top);
+
+	return top;
 }
 
 /* Read memory settings from the Xen provided device tree. */
